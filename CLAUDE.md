@@ -10,7 +10,7 @@ The first/canonical command is `jjenv add-all`: discover every JDK installed on 
 
 ## Running and testing
 
-This is pure bash — no build step, no package manager, no test framework yet.
+This is pure bash — no build step, no package manager.
 
 ```bash
 # Run the CLI directly from the repo
@@ -32,7 +32,27 @@ JJENV_JDK_PATHS=/opt/mine:/srv/jdks bin/jjenv add-all --dry-run -v
 bin/jjenv add-all --dry-run --path /opt/mine --path /srv/jdks
 ```
 
-The `test/` directory is empty — there is no test suite yet.
+### Test suite
+
+bats lives under `test/`: `test_helper.bash` + one `.bats` file per command
+(`dispatcher.bats`, `add-all.bats`, `list-all.bats`). Run with:
+
+```bash
+./run-tests.sh                          # local bats, target = test/
+./run-tests.sh test/list-all.bats       # one file
+./run-tests.sh --docker                 # Alpine container, CI parity
+```
+
+The helper isolates each test inside `$BATS_TEST_TMPDIR` with a fake `$HOME`,
+a fake `$JENV_ROOT/versions/`, and a fake `jenv` on `PATH` that logs
+invocations to `$JJENV_LOG`. New tests should drive discovery with
+`--no-defaults --path "$JJENV_TEST_JDKS"` so they never see real JDKs on the
+developer's machine.
+
+`--docker` builds `test/Dockerfile` (Alpine + bash + bats + GNU coreutils) and
+runs the suite inside. Caveat: the container ships modern bash, so it catches
+Linux-portability bugs but NOT bash 3.2 incompatibilities — the local macOS
+run is the only thing that catches those.
 
 ## Target bash version: 3.2
 
@@ -95,3 +115,48 @@ Linux paths are coded but **not yet verified on Linux** — treat them as best-e
 ## Completions
 
 `completions/jjenv.bash` and `completions/jjenv.zsh` are sourced by the user from their shell rc. Both call `jjenv commands` to enumerate subcommands dynamically, so new commands appear in completion without editing the completion scripts — **unless** the new command takes flags, in which case add a case branch for it in both files.
+
+## Distribution
+
+jjenv ships via a personal Homebrew tap at `jinahya/tap`:
+
+```bash
+brew install jinahya/tap/jjenv
+```
+
+The tap source is the **sibling** repo `github.com/jinahya/homebrew-tap`,
+cloned at `~/gitcl/github.com/jinahya/homebrew-tap`. It is intentionally a
+separate top-level repo (not a submodule) — see the rationale captured during
+v0.1.0 setup. The formula `Formula/jjenv.rb` pins a tarball URL + sha256
+against a tag in *this* repo.
+
+To cut a new release:
+
+1. Commit changes here, push to `main`.
+2. `git tag vX.Y.Z && git push --tags`.
+3. Compute the sha256:
+   `curl -fsSL https://github.com/jinahya/jjenv/archive/refs/tags/vX.Y.Z.tar.gz | shasum -a 256`.
+4. In the tap repo, bump `url` and `sha256` in `Formula/jjenv.rb`, commit, push.
+5. Smoke test:
+   ```bash
+   brew update
+   brew upgrade jinahya/tap/jjenv
+   brew test jjenv
+   brew audit --strict --online jjenv
+   ```
+
+`_HOMEBREW_CORE.asciidoc` in this repo is the source of truth for the tap
+layout, formula shape, and the eventual path to `homebrew-core`. Read it
+before changing the publishing flow.
+
+## Documentation files
+
+- `README.md` — English README. Single source of truth for user-facing prose.
+- `README_ko.md` — Korean translation. **Must be kept in sync section-by-section
+  with `README.md`.** Both link to each other at the top
+  (`**English** · [한국어](README_ko.md)` and vice versa). When you change one,
+  change the other in the same commit.
+- `_HOMEBREW_CORE.asciidoc` — notes on the personal-tap layout, the formula
+  shape, and the long-term path to homebrew-core.
+- `LICENSE` — MIT, © 2026 Jin Kwon. Must remain MIT for the formula's
+  `license "MIT"` declaration to stay valid.
