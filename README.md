@@ -8,7 +8,7 @@ Extra commands for [jenv](https://github.com/jenv/jenv), the Java version manage
 
 ## Status
 
-Early. Two commands (`list-all`, `add-all`) are implemented and working. Tested on macOS; Linux discovery paths are coded but not yet verified on Linux.
+Early. Two commands (`list-all`, `add-all`) are implemented and working. Tested on macOS and inside a Linux container (Alpine, via `./run-tests.sh --docker`) — 31/31 bats tests pass on both. Real-world Linux usage with actual `/usr/lib/jvm/*` JDKs is still unverified.
 
 ## Requirements
 
@@ -141,6 +141,18 @@ completions/          # bash + zsh completion
 ```
 
 Adding a new command = drop an executable `libexec/jjenv-<name>` script that follows the magic-comment header convention (`# Summary:`, `# Usage:`, `# Help:`). It is picked up automatically by `jjenv commands`, `jjenv help`, and the completion scripts.
+
+## Development
+
+Test suite is bats. From the repo root:
+
+```bash
+./run-tests.sh                    # local, requires bats on PATH (brew install bats-core)
+./run-tests.sh test/list-all.bats # one file
+./run-tests.sh --docker           # run inside Alpine for Linux/CI parity
+```
+
+The container ships modern bash, so it catches Linux-portability bugs but not bash 3.2 incompatibilities — run the local mode on macOS for those.
 
 ## License
 

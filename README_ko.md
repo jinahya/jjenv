@@ -8,7 +8,7 @@ Java 버전 관리자 [jenv](https://github.com/jenv/jenv)를 위한 부가 명�
 
 ## 상태
 
-초기 단계. 현재 두 개의 명령어(`list-all`, `add-all`)가 구현되어 동작합니다. macOS에서 테스트되었고, Linux 탐색 경로는 코딩되어 있지만 아직 Linux에서 검증되지 않았습니다.
+초기 단계. 현재 두 개의 명령어(`list-all`, `add-all`)가 구현되어 동작합니다. macOS 및 Linux 컨테이너(Alpine, `./run-tests.sh --docker`)에서 테스트되며 양쪽 모두 31/31 bats 테스트 통과. 실제 Linux 환경의 `/usr/lib/jvm/*` JDK들로 직접 검증한 단계는 아직입니다.
 
 ## 요구 사항
 
@@ -141,6 +141,18 @@ completions/          # bash + zsh 자동 완성
 ```
 
 새 명령어 추가는 매직 코멘트 헤더 규약(`# Summary:`, `# Usage:`, `# Help:`)을 따르는 실행 가능한 `libexec/jjenv-<name>` 스크립트를 추가하는 것만으로 끝납니다. `jjenv commands`, `jjenv help`, 자동 완성 스크립트가 이를 자동으로 인식합니다.
+
+## 개발
+
+테스트 스위트는 bats로 작성되어 있습니다. 저장소 루트에서:
+
+```bash
+./run-tests.sh                    # 로컬 실행. PATH에 bats 필요 (brew install bats-core)
+./run-tests.sh test/list-all.bats # 특정 파일만 실행
+./run-tests.sh --docker           # Alpine 컨테이너 내에서 실행 (Linux/CI 동등성)
+```
+
+컨테이너는 최신 bash를 탑재하므로 Linux 이식성 문제는 잡아내지만 bash 3.2 호환성 문제는 잡지 못합니다 — bash 3.2 회귀는 macOS 로컬 실행으로만 검출됩니다.
 
 ## 라이선스
 
