@@ -1,5 +1,7 @@
 # jjenv
 
+**English** · [한국어](README_ko.md)
+
 Extra commands for [jenv](https://github.com/jenv/jenv), the Java version manager.
 
 `jjenv` is a standalone bash CLI that wraps `jenv` and adds operations jenv does not ship out of the box. It does **not** replace jenv — `jenv` must be installed and on your `PATH`.
@@ -14,6 +16,16 @@ Early. Two commands (`list-all`, `add-all`) are implemented and working. Tested 
 - `bash` (any version ≥ 3.2 — works with the macOS system bash)
 
 ## Install
+
+### Homebrew (recommended)
+
+```bash
+brew install jinahya/jjenv/jjenv
+```
+
+`jenv` is pulled in automatically as a dependency. Bash and zsh completions are installed by Homebrew — restart your shell (or `source $(brew --prefix)/etc/profile.d/bash_completion.sh` for bash) to pick them up.
+
+### From source
 
 Clone the repo and put `bin/` on your `PATH`:
 
