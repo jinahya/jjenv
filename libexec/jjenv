@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+#
+# Summary: Run a jjenv command.
+#
+# Usage: jjenv <command> [<args>...]
+#
+set -e
+
+if [ -n "${JJENV_DEBUG-}" ]; then
+  export PS4='+ [${BASH_SOURCE##*/}:${LINENO}] '
+  set -x
+fi
+
+command="${1-}"
+case "$command" in
+"" )
+  { jjenv---version
+    jjenv-help
+  } >&2
+  exit 1
+  ;;
+-v | --version )
+  exec jjenv---version
+  ;;
+-h | --help )
+  exec jjenv-help
+  ;;
+* )
+  command_path="$(command -v "jjenv-$command" || true)"
+  if [ -z "$command_path" ]; then
+    echo "jjenv: no such command \`$command'" >&2
+    exit 1
+  fi
+  shift
+  exec "$command_path" "$@"
+  ;;
+esac

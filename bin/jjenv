@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -e
+
+if [ -n "${JJENV_DEBUG-}" ]; then
+  export PS4='+ [${BASH_SOURCE##*/}:${LINENO}] '
+  set -x
+fi
+
+resolve_link() {
+  $(type -p greadlink readlink | head -n1) "$1"
+}
+
+abs_dirname() {
+  local cwd="$PWD"
+  local path="$1"
+  while [ -n "$path" ]; do
+    cd "${path%/*}" 2>/dev/null || break
+    local name="${path##*/}"
+    path="$(resolve_link "$name" || true)"
+  done
+  pwd
+  cd "$cwd"
+}
+
+JJENV_ROOT_DIR="$(abs_dirname "$0")/.."
+export _JJENV_ROOT="${JJENV_ROOT_DIR}"
+export PATH="${JJENV_ROOT_DIR}/libexec:${PATH}"
+
+exec "${JJENV_ROOT_DIR}/libexec/jjenv" "$@"

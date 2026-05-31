@@ -1,0 +1,196 @@
+= Publishing jjenv to Homebrew
+:toc:
+:source-highlighter: rouge
+
+Notes on how `jjenv` can be installed via Homebrew, and what it would take to
+land it in `homebrew-core` someday.
+
+References::
+* https://docs.brew.sh/Adding-Software-to-Homebrew
+* https://docs.brew.sh/Acceptable-Formulae
+* https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap
+* https://github.com/Homebrew/homebrew-core/blob/master/Formula/j/jenv.rb (reference formula)
+
+== Two distribution paths
+
+[cols="1,3,3", options="header"]
+|===
+| Path | Install command | Who can publish
+
+| homebrew-core (the canonical tap)
+| `brew install jjenv`
+| Anyone via PR to `Homebrew/homebrew-core`, **subject to acceptance criteria**.
+
+| Personal tap
+| `brew tap jinahya/jjenv && brew install jjenv`
+| The author, in a self-owned repo. No review.
+|===
+
+== Why homebrew-core is not viable yet
+
+From https://docs.brew.sh/Acceptable-Formulae:
+
+[quote, Acceptable Formulae - Notability]
+GitHub repositories should have >=30 forks, >=30 watchers or >=75 stars.
+
+[quote, Acceptable Formulae - Self-submission]
+Notability requirements for self-submitted software are 3 times higher than the
+applicable thresholds above (e.g. on GitHub: >=90 forks, >=90 watchers, or
+>=225 stars).
+
+[quote, Acceptable Formulae - Versioned releases]
+Formulae in the core repository must have a stable version tagged by the
+upstream project. Rolling-release software without a tagged version is not
+acceptable.
+
+`jjenv` today has no tagged release and a low star count, so a homebrew-core PR
+would be closed on both grounds. Track:
+
+* Cut `v0.1.0` (and beyond) before any submission attempt.
+* Build organic adoption to clear the 225-star self-submission bar — or have a
+  community user submit it once it clears the 75-star community bar.
+
+There is no rule against a `jenv` companion tool. Homebrew already ships `jenv`
+itself at `Formula/j/jenv.rb`, and adjacency to an existing formula is fine.
+
+== Recommended path now: personal tap
+
+A Homebrew tap is just a GitHub repo named `homebrew-<something>`, containing
+formula files under `Formula/`. Users add it with `brew tap <user>/<something>`
+(Homebrew strips the `homebrew-` prefix automatically).
+
+=== Tap repo layout
+
+[source]
+----
+github.com/jinahya/homebrew-jjenv
+└── Formula/
+    └── jjenv.rb
+----
+
+=== One-time setup
+
+. In *this* repo (`jinahya/jjenv`), cut the first release:
++
+[source, bash]
+----
+git tag v0.1.0
+git push --tags
+# (or create the release via the GitHub UI / `gh release create v0.1.0`)
+----
+
+. Compute the tarball SHA-256:
++
+[source, bash]
+----
+curl -fsSL https://github.com/jinahya/jjenv/archive/refs/tags/v0.1.0.tar.gz \
+  | shasum -a 256
+----
+
+. Create a *new* GitHub repo named `homebrew-jjenv` (the `homebrew-` prefix is
+  mandatory). Add `Formula/jjenv.rb` (see below) with the SHA-256 filled in.
+  Commit and push.
+
+. Users install with:
++
+[source, bash]
+----
+brew tap jinahya/jjenv
+brew install jjenv
+
+# or in one shot:
+brew install jinahya/jjenv/jjenv
+----
+
+. To ship a new version, bump `url` to the new tag, replace `sha256`, push.
+  Users get the update with `brew upgrade jjenv`.
+
+=== Formula file
+
+`Formula/jjenv.rb` in the tap repo:
+
+[source, ruby]
+----
+class Jjenv < Formula
+  desc "Extra commands for jenv (Java version manager)"
+  homepage "https://github.com/jinahya/jjenv"
+  url "https://github.com/jinahya/jjenv/archive/refs/tags/v0.1.0.tar.gz"
+  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  license "MIT"
+  head "https://github.com/jinahya/jjenv.git", branch: "main"
+
+  depends_on "jenv"
+
+  def install
+    libexec.install "bin", "libexec"
+    bin.install_symlink libexec/"bin/jjenv"
+    bash_completion.install "completions/jjenv.bash" => "jjenv"
+    zsh_completion.install  "completions/jjenv.zsh"  => "_jjenv"
+  end
+
+  test do
+    assert_match "jjenv", shell_output("#{bin}/jjenv --version")
+    shell_output("#{bin}/jjenv commands")
+  end
+end
+----
+
+==== Why this layout works at runtime
+
+`bin/jjenv` is a thin entry-point that resolves its own real path by walking
+symlinks (`resolve_link` / `abs_dirname` in `bin/jjenv`), then sets
+`JJENV_ROOT_DIR` to `<resolved-dir>/..` and prepends `$JJENV_ROOT_DIR/libexec`
+to `PATH`.
+
+With the install block above, Homebrew lays things out as:
+
+[source]
+----
+.../Cellar/jjenv/0.1.0/
+├── bin/
+│   └── jjenv          -> ../libexec/bin/jjenv          (symlink)
+└── libexec/
+    ├── bin/
+    │   └── jjenv      (real file)
+    └── libexec/
+        ├── jjenv      (router)
+        ├── jjenv-add-all
+        ├── jjenv-list-all
+        ├── jjenv-commands
+        ├── jjenv-help
+        ├── jjenv---version
+        └── lib/jjenv-discover.bash
+----
+
+Plus the public symlink `/opt/homebrew/bin/jjenv ->
+../Cellar/jjenv/0.1.0/bin/jjenv`. The double-symlink hop is exactly what
+`abs_dirname` is designed to walk, so `JJENV_ROOT_DIR` correctly resolves to
+`.../Cellar/jjenv/0.1.0/libexec`, and `$JJENV_ROOT_DIR/libexec` hits the real
+command directory.
+
+==== License field
+
+The formula declares `license "MIT"`. The `LICENSE` file in this repo must
+exist and match (the README currently lists license as TBD — fix this before
+tagging `v0.1.0`).
+
+==== `test do` block
+
+Homebrew runs this via `brew test jjenv`. It must succeed offline; do not call
+`jenv` (it has its own state). `--version` and `commands` are self-contained.
+
+== Path to homebrew-core (later)
+
+When jjenv has both a real release history and the notability numbers,
+graduating to homebrew-core is mostly mechanical:
+
+. Pick a stable, well-tested release tag.
+. Fork `Homebrew/homebrew-core`.
+. Copy the tap's `Formula/jjenv.rb` to `Formula/j/jjenv.rb` in the fork.
+. Remove the `head` line — homebrew-core does not accept `head` URLs.
+. Run `brew audit --strict --new jjenv` and `brew test jjenv` locally; fix any
+  warnings.
+. Open a PR to `Homebrew/homebrew-core` titled `jjenv <version> (new formula)`.
+. The maintainers may ask for changes; the PR is the review.
+
+Once merged, deprecate the personal tap (or keep it for `--HEAD` installs).

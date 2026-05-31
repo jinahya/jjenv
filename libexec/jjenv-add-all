@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+#
+# Summary: Discover all installed JDKs and register them with jenv
+#
+# Usage: jjenv add-all [-n|--dry-run] [-v|--verbose] [--no-defaults] [--path <dir>]...
+#
+# Help: Searches well-known JDK locations for the current platform
+# (macOS, Linux) plus SDKMAN, and invokes
+# `jenv add <path>` for each JDK that is not already registered.
+#
+# Options:
+#   -n, --dry-run     Print what would be added without calling jenv add.
+#   -v, --verbose     Print each path that is scanned.
+#       --no-defaults Skip the built-in platform and SDKMAN search paths;
+#                     only scan roots given via --path / JJENV_JDK_PATHS.
+#       --path <dir>  Add an extra search root (repeatable).
+#
+# Environment:
+#   JJENV_JDK_PATHS   Colon-separated list of extra search roots.
+#   JJENV_NO_DEFAULTS If non-empty, equivalent to --no-defaults.
+#
+set -e
+
+dry_run=false
+verbose=false
+no_defaults=false
+[ -n "${JJENV_NO_DEFAULTS-}" ] && no_defaults=true
+extra_paths=()
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+  -n | --dry-run ) dry_run=true ;;
+  -v | --verbose ) verbose=true ;;
+  --no-defaults ) no_defaults=true ;;
+  --path )
+    [ $# -ge 2 ] || { echo "jjenv: --path requires an argument" >&2; exit 1; }
+    extra_paths+=("$2"); shift
+    ;;
+  --path=* ) extra_paths+=("${1#--path=}") ;;
+  -h | --help ) exec jjenv-help add-all ;;
+  -- ) shift; break ;;
+  -* ) echo "jjenv: unknown option \`$1'" >&2; exit 1 ;;
+  * ) echo "jjenv: unexpected argument \`$1'" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+if ! command -v jenv >/dev/null 2>&1; then
+  echo "jjenv: \`jenv' not found on PATH" >&2
+  exit 1
+fi
+
+# shellcheck source=lib/jjenv-discover.bash
+. "${BASH_SOURCE[0]%/*}/lib/jjenv-discover.bash"
+
+unique=()
+while IFS= read -r p; do
+  [ -n "$p" ] && unique+=("$p")
+done < <(_jjenv_discover)
+
+_jjenv_load_registered
+
+if [ "${#unique[@]}" -eq 0 ]; then
+  echo "jjenv: no JDKs found"
+  exit 0
+fi
+
+added=0
+skipped=0
+for p in "${unique[@]}"; do
+  if _jjenv_is_registered "$p"; then
+    echo "already added: $p"
+    skipped=$((skipped + 1))
+    continue
+  fi
+  if $dry_run; then
+    echo "would add: $p"
+  else
+    echo "adding: $p"
+    jenv add "$p" || echo "jjenv: jenv add failed for $p" >&2
+  fi
+  added=$((added + 1))
+done
+
+echo
+if $dry_run; then
+  echo "summary: $added would be added, $skipped already registered"
+else
+  echo "summary: $added added, $skipped already registered"
+fi

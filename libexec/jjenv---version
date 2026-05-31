@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Summary: Display the version of jjenv
+set -e
+echo "jjenv 0.1.0"

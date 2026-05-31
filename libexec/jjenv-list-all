@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+#
+# Summary: List all installed JDK paths suitable for `jenv add`
+#
+# Usage: jjenv list-all [-v|--verbose] [--no-defaults] [--unregistered] [--path <dir>]...
+#
+# Help: Prints one JDK Home path per line on stdout. Each line is exactly
+# the argument you would append to `jenv add`. Discovery uses the same
+# rules as `jjenv add-all` (macOS/Linux + SDKMAN + user-supplied roots).
+#
+# Examples:
+#   jjenv list-all                       # every discovered JDK
+#   jjenv list-all --unregistered        # only JDKs not yet in jenv
+#   jjenv list-all --unregistered | xargs -L1 jenv add
+#
+# Options:
+#   -v, --verbose      Log scan progress to stderr (stdout stays pipeable).
+#       --no-defaults  Skip built-in platform and SDKMAN scans.
+#       --unregistered Only print JDKs that are not already in jenv's versions.
+#       --path <dir>   Add an extra search root (repeatable).
+#
+# Environment:
+#   JJENV_JDK_PATHS    Colon-separated list of extra search roots.
+#   JJENV_NO_DEFAULTS  If non-empty, equivalent to --no-defaults.
+#
+set -e
+
+verbose=false
+no_defaults=false
+[ -n "${JJENV_NO_DEFAULTS-}" ] && no_defaults=true
+unregistered_only=false
+extra_paths=()
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+  -v | --verbose ) verbose=true ;;
+  --no-defaults ) no_defaults=true ;;
+  --unregistered ) unregistered_only=true ;;
+  --path )
+    [ $# -ge 2 ] || { echo "jjenv: --path requires an argument" >&2; exit 1; }
+    extra_paths+=("$2"); shift
+    ;;
+  --path=* ) extra_paths+=("${1#--path=}") ;;
+  -h | --help ) exec jjenv-help list-all ;;
+  -- ) shift; break ;;
+  -* ) echo "jjenv: unknown option \`$1'" >&2; exit 1 ;;
+  * ) echo "jjenv: unexpected argument \`$1'" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+# shellcheck source=lib/jjenv-discover.bash
+. "${BASH_SOURCE[0]%/*}/lib/jjenv-discover.bash"
+
+unique=()
+while IFS= read -r p; do
+  [ -n "$p" ] && unique+=("$p")
+done < <(_jjenv_discover)
+
+if $unregistered_only; then
+  _jjenv_load_registered
+  for p in "${unique[@]+"${unique[@]}"}"; do
+    _jjenv_is_registered "$p" || printf '%s\n' "$p"
+  done
+else
+  for p in "${unique[@]+"${unique[@]}"}"; do
+    printf '%s\n' "$p"
+  done
+fi

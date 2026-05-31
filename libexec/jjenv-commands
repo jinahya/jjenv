@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Summary: List all available jjenv commands
+#
+# Usage: jjenv commands [--sh|--no-sh]
+set -e
+
+shell_only=false
+no_sh=false
+case "${1-}" in
+--sh ) shell_only=true ;;
+--no-sh ) no_sh=true ;;
+esac
+
+IFS=:
+shopt -s nullglob
+for path in $PATH; do
+  for command in "$path"/jjenv-*; do
+    name="${command##*/jjenv-}"
+    case "$name" in
+    --* ) continue ;;
+    sh-* )
+      $no_sh && continue
+      name="${name#sh-}"
+      ;;
+    * )
+      $shell_only && continue
+      ;;
+    esac
+    echo "$name"
+  done
+done | sort -u
