@@ -20,7 +20,7 @@ Java 버전 관리자 [jenv](https://github.com/jenv/jenv)를 위한 부가 명�
 ### Homebrew (권장)
 
 ```bash
-brew install jinahya/jjenv/jjenv
+brew install jinahya/tap/jjenv
 ```
 
 `jenv`는 의존성으로 자동 설치됩니다.

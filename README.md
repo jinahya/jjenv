@@ -20,7 +20,7 @@ Early. Two commands (`list-all`, `add-all`) are implemented and working. Tested 
 ### Homebrew (recommended)
 
 ```bash
-brew install jinahya/jjenv/jjenv
+brew install jinahya/tap/jjenv
 ```
 
 `jenv` is pulled in automatically as a dependency. Bash and zsh completions are installed by Homebrew — restart your shell (or `source $(brew --prefix)/etc/profile.d/bash_completion.sh` for bash) to pick them up.
