@@ -8,7 +8,7 @@ Java 버전 관리자 [jenv](https://github.com/jenv/jenv)를 위한 부가 명�
 
 ## 상태
 
-초기 단계. 현재 두 개의 명령어(`list-all`, `add-all`)가 구현되어 동작합니다. macOS 및 Linux 컨테이너(Alpine, `./run-tests.sh --docker`)에서 테스트되며 양쪽 모두 31/31 bats 테스트 통과. 실제 Linux 환경의 `/usr/lib/jvm/*` JDK들로 직접 검증한 단계는 아직입니다.
+초기 단계. 현재 두 개의 명령어(`list-all`, `add-all`)가 구현되어 동작합니다. macOS 로컬 bats, Alpine 컨테이너(`./run-tests.sh --docker`), 그리고 실제 Debian + OpenJDK 환경(`./test/smoke-linux.sh`)에서 검증됩니다. 31/31 bats 테스트 통과, Linux 탐색이 실제 `/usr/lib/jvm/` 경로의 JDK를 찾아냄을 확인.
 
 ## 요구 사항
 
@@ -149,10 +149,13 @@ completions/          # bash + zsh 자동 완성
 ```bash
 ./run-tests.sh                    # 로컬 실행. PATH에 bats 필요 (brew install bats-core)
 ./run-tests.sh test/list-all.bats # 특정 파일만 실행
-./run-tests.sh --docker           # Alpine 컨테이너 내에서 실행 (Linux/CI 동등성)
+./run-tests.sh --docker           # Alpine 컨테이너 내에서 hermetic bats 스위트 실행
+./test/smoke-linux.sh             # 실제 Debian + OpenJDK 환경에서 end-to-end 스모크 테스트
 ```
 
-컨테이너는 최신 bash를 탑재하므로 Linux 이식성 문제는 잡아내지만 bash 3.2 호환성 문제는 잡지 못합니다 — bash 3.2 회귀는 macOS 로컬 실행으로만 검출됩니다.
+`./run-tests.sh --docker`는 bats 스위트를 페이크 JDK와 페이크 `jenv`로 격리해서 실행합니다 — bash 코드가 Linux에서 동작하는지 검증. `./test/smoke-linux.sh`는 실제 `openjdk-17-jdk-headless`를 설치한 Debian 이미지로, Linux 탐색 글롭(`/usr/lib/jvm/*`)이 실제 배포판 레이아웃과 일치하는지 검증합니다.
+
+두 컨테이너 모두 bash 3.2를 탑재하지 않으므로, bash 3.2 호환성 문제는 여전히 macOS 로컬 실행으로만 검출됩니다.
 
 ## 라이선스
 

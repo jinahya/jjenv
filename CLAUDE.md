@@ -40,19 +40,30 @@ bats lives under `test/`: `test_helper.bash` + one `.bats` file per command
 ```bash
 ./run-tests.sh                          # local bats, target = test/
 ./run-tests.sh test/list-all.bats       # one file
-./run-tests.sh --docker                 # Alpine container, CI parity
+./run-tests.sh --docker                 # Alpine container, CI parity (hermetic, fake JDKs)
+./test/smoke-linux.sh                   # Debian + real OpenJDK, end-to-end Linux smoke
 ```
 
-The helper isolates each test inside `$BATS_TEST_TMPDIR` with a fake `$HOME`,
-a fake `$JENV_ROOT/versions/`, and a fake `jenv` on `PATH` that logs
+The bats helper isolates each test inside `$BATS_TEST_TMPDIR` with a fake
+`$HOME`, a fake `$JENV_ROOT/versions/`, and a fake `jenv` on `PATH` that logs
 invocations to `$JJENV_LOG`. New tests should drive discovery with
 `--no-defaults --path "$JJENV_TEST_JDKS"` so they never see real JDKs on the
 developer's machine.
 
 `--docker` builds `test/Dockerfile` (Alpine + bash + bats + GNU coreutils) and
-runs the suite inside. Caveat: the container ships modern bash, so it catches
-Linux-portability bugs but NOT bash 3.2 incompatibilities — the local macOS
-run is the only thing that catches those.
+runs the same hermetic bats suite inside. It verifies that the bash code is
+Linux-portable, but it does *not* exercise the Linux discovery globs against
+real JDKs (the tests use fakes).
+
+`test/smoke-linux.sh` is the separate non-hermetic smoke test: it builds
+`test/smoke-linux.Dockerfile` (Debian bookworm-slim + `openjdk-17-jdk-headless`
++ a fake `jenv` stub), then runs `jjenv list-all` and `jjenv add-all --dry-run`
+with **defaults enabled** and asserts that the `/usr/lib/jvm/*` glob matches
+the real OpenJDK install. This is what closes the loop on the Linux discovery
+branch.
+
+Caveat: neither container ships bash 3.2, so bash 3.2 incompatibilities are
+still only caught by the local macOS run.
 
 ## Target bash version: 3.2
 
@@ -110,7 +121,7 @@ Discovery is platform-specific. Detection uses `uname -s`. **Only macOS and Linu
 
 When adding a new discovery path, also add a `log "scan: <pattern>"` call so `-v` output stays useful. A candidate counts only if `<path>/bin/java` exists and is executable (`add_candidate` enforces this).
 
-Linux paths are coded but **not yet verified on Linux** — treat them as best-effort until tested.
+Linux paths are exercised end-to-end by `test/smoke-linux.sh` against a real `openjdk-17-jdk-headless` install on Debian. Other Linux distros (Fedora's `/usr/lib64/jvm/*`, third-party tarballs under `/opt/...`) are not yet covered — extend the smoke image if you want those validated.
 
 ## Completions
 

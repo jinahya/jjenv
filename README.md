@@ -8,7 +8,7 @@ Extra commands for [jenv](https://github.com/jenv/jenv), the Java version manage
 
 ## Status
 
-Early. Two commands (`list-all`, `add-all`) are implemented and working. Tested on macOS and inside a Linux container (Alpine, via `./run-tests.sh --docker`) — 31/31 bats tests pass on both. Real-world Linux usage with actual `/usr/lib/jvm/*` JDKs is still unverified.
+Early. Two commands (`list-all`, `add-all`) are implemented and working. Verified on macOS (local bats), inside an Alpine container (`./run-tests.sh --docker`), and against a real OpenJDK install on Debian (`./test/smoke-linux.sh`). 31/31 bats tests pass, and Linux discovery actually finds JDKs under `/usr/lib/jvm/`.
 
 ## Requirements
 
@@ -149,10 +149,13 @@ Test suite is bats. From the repo root:
 ```bash
 ./run-tests.sh                    # local, requires bats on PATH (brew install bats-core)
 ./run-tests.sh test/list-all.bats # one file
-./run-tests.sh --docker           # run inside Alpine for Linux/CI parity
+./run-tests.sh --docker           # run the hermetic bats suite inside Alpine
+./test/smoke-linux.sh             # end-to-end smoke test against a real OpenJDK on Debian
 ```
 
-The container ships modern bash, so it catches Linux-portability bugs but not bash 3.2 incompatibilities — run the local mode on macOS for those.
+`./run-tests.sh --docker` keeps the bats suite hermetic (fake JDKs, fake `jenv`) — it verifies that the bash code runs on Linux. `./test/smoke-linux.sh` is a separate Debian-based image with a real `openjdk-17-jdk-headless` installed, used to verify that the Linux discovery globs (`/usr/lib/jvm/*`) actually match a real distro layout.
+
+Neither container ships bash 3.2, so bash 3.2 incompatibilities are still only caught by the local macOS run.
 
 ## License
 
